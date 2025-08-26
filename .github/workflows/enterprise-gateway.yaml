@@ -15,6 +15,12 @@ jobs:
     permissions:
       contents: write
     runs-on: ubuntu-latest
+  
+    env:
+      LOCAL_CHART_DIR: eodc/enterprise-gateway
+      UPSTREAM_REPO: jupyter-server/enterprise_gateway
+      UPSTREAM_CHART_PATH: etc/kubernetes/helm/enterprise-gateway
+    
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -28,32 +34,47 @@ jobs:
       
       - name: Install Helm
         uses: azure/setup-helm@v4
-      
-      - name: add repos
-        run: |
-          helm repo add jupyterhub https://hub.jupyter.org/helm-chart/
-          helm repo add binderhub-service https://2i2c.org/binderhub-service
-      
-      - name: Install Homebrew
-        uses: Homebrew/actions/setup-homebrew@main
-      
-      - name: Install Chart Releaser via Homebrew
-        run: |
-          brew tap helm/tap
-          brew install chart-releaser
 
-      - name: Release JupyterHub chart
+      - name: Get most recent JEG chart
+        run: |
+          git clone --depth 1 --filter=blob:none --sparse "https://github.com/${UPSTREAM_REPO}.git" /tmp/jeg-repo
+          cd /tmp/jeg-repo
+          git sparse-checkout set "${UPSTREAM_CHART_PATH}"
+          mkdir --parent /tmp/jeg-chart-new
+          rsync --archive "${UPSTREAM_CHART_PATH}/" "/tmp/jeg-chart-new/"
+
+      - name: Detect changes vs local chart
+        id: diff
+        shell: bash
+        run: |
+          mkdir -p "${LOCAL_CHART_DIR}"
+          if diff -qr "${LOCAL_CHART_DIR}" /tmp/jeg-chart-new/ >/dev/null 2>&1; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update working tree with upstream chart
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          rm -rf "${LOCAL_CHART_DIR}"
+          mkdir -p "${LOCAL_CHART_DIR}"
+          rsync -a /tmp/jeg-chart-new/ "${LOCAL_CHART_DIR}/"
+      
+      - name: Helm lint
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          helm lint "${LOCAL_CHART_DIR}"
+          
+      - name: Run chart-releaser
+        if: steps.diff.outputs.changed == 'true'
+        uses: helm/chart-releaser-action@v1.7.0
+        with:
+          charts_dir: eodc
+          packages_with_index: true
         env:
-          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-        run: |
-          cr package eodc/enterprise-gateway
-          cr upload --owner eodcgmbh --token $CR_TOKEN --git-repo charts --packages-with-index --push --skip-existing 
-          cr index --owner eodcgmbh --token $CR_TOKEN --git-repo charts --packages-with-index --index-path . --push
+          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Run chart-releaser
-      #   uses: helm/chart-releaser-action@v1.7.0
-      #   with:
-      #     charts_dir: eodc/jupyterhub
-      #     packages_with_index: True
-      #   env:
-      #     CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      - name: No changes detected
+        if: steps.diff.outputs.changed != 'true'
+        run: echo "No changes in upstream Enterprise Gateway chart. Skipping release."
