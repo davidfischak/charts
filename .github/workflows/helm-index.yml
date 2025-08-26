@@ -1,0 +1,36 @@
+name: Bootstrap Helm index (from existing releases)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap-index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Ensure gh-pages exists with a minimal index so the action has a branch to push to
+      - name: Ensure gh-pages branch
+        run: |
+          if ! git ls-remote --heads origin gh-pages | grep -q gh-pages; then
+            git checkout --orphan gh-pages
+            printf "apiVersion: v1\nentries: {}\n" > index.yaml
+            git add index.yaml
+            git -c user.name="$GITHUB_ACTOR" -c user.email="$GITHUB_ACTOR@users.noreply.github.com" commit -m "Initialize Helm index"
+            git push origin gh-pages
+            git switch -
+          fi
+
+      # Build index.yaml referencing .tgz files already attached to GitHub Releases
+      - name: Create/Update index.yaml on gh-pages
+        uses: helm/chart-releaser-action@v1.7.0
+        with:
+          skip_package: true          # don't package anything, just index from releases
+          packages_with_index: true   # write index.yaml to gh-pages
+        env:
+          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
