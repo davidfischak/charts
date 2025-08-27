@@ -1,4 +1,4 @@
-name: Release offical enterprise gateway chart
+name: Release upstream JEG chart
 
 on:
   schedule:
