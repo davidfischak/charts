@@ -1,6 +1,8 @@
 name: Release offical enterprise gateway chart
 
 on:
+  schedule:
+    - cron: "0 8 * * 1"
   workflow_dispatch:
   push:
     branches:
@@ -17,9 +19,11 @@ jobs:
     runs-on: ubuntu-latest
   
     env:
-      LOCAL_CHART_DIR: eodc/enterprise-gateway
+      LOCAL_CHART: eodc/enterprise-gateway
+      NEW_CHART: /tmp/jeg-chart-new
       UPSTREAM_REPO: jupyter-server/enterprise_gateway
       UPSTREAM_CHART_PATH: etc/kubernetes/helm/enterprise-gateway
+      
     
     steps:
       - name: Checkout
@@ -40,15 +44,15 @@ jobs:
           git clone --depth 1 --filter=blob:none --sparse "https://github.com/${UPSTREAM_REPO}.git" /tmp/jeg-repo
           cd /tmp/jeg-repo
           git sparse-checkout set "${UPSTREAM_CHART_PATH}"
-          mkdir --parent /tmp/jeg-chart-new
-          rsync --archive "${UPSTREAM_CHART_PATH}/" "/tmp/jeg-chart-new/"
+          mkdir --parent "${NEW_CHART}"
+          rsync --archive "${UPSTREAM_CHART_PATH}/" "${NEW_CHART}"
 
       - name: Detect changes vs local chart
         id: diff
         shell: bash
         run: |
-          mkdir -p "${LOCAL_CHART_DIR}"
-          if diff -qr "${LOCAL_CHART_DIR}" /tmp/jeg-chart-new/ >/dev/null 2>&1; then
+          mkdir --parent "${LOCAL_CHART}"
+          if diff --brief --recursive "${LOCAL_CHART}" "${NEW_CHART}"/ >/dev/null 2>&1; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -57,14 +61,14 @@ jobs:
       - name: Update working tree with upstream chart
         if: steps.diff.outputs.changed == 'true'
         run: |
-          rm -rf "${LOCAL_CHART_DIR}"
-          mkdir -p "${LOCAL_CHART_DIR}"
-          rsync -a /tmp/jeg-chart-new/ "${LOCAL_CHART_DIR}/"
+          rm --force --recursive "${LOCAL_CHART}"
+          mkdir --parent "${LOCAL_CHART}"
+          rsync --archive "${NEW_CHART}"/ "${LOCAL_CHART}/"
       
       - name: Helm lint
         if: steps.diff.outputs.changed == 'true'
         run: |
-          helm lint "${LOCAL_CHART_DIR}"
+          helm lint "${LOCAL_CHART}"
           
       - name: Run chart-releaser
         if: steps.diff.outputs.changed == 'true'
