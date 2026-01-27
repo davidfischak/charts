@@ -5,7 +5,7 @@ on:
 
 env:
   PINNED_VERSION: "3.2.3"
-  WRAPPER_CHART_PATH: "jupyter-enterprise-gateway" 
+  WRAPPER_CHART_PATH: "charts/eodc/jupyter-enterprise-gateway" 
 
 permissions:
   contents: write
@@ -22,7 +22,7 @@ jobs:
 
       - name: Embed Upstream Dependency
         run: |
-          mkdir -p ${{ env.WRAPPER_CHART_PATH }}/charts/enterprise-gateway
+          #mkdir -p ${{ env.WRAPPER_CHART_PATH }}/charts/enterprise-gateway
           git clone --depth 1 --filter=blob:none --sparse https://github.com/jupyter-server/enterprise_gateway.git temp_upstream
           cd temp_upstream
           git sparse-checkout set etc/kubernetes/helm/enterprise-gateway
