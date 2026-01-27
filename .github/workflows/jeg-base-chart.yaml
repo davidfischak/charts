@@ -1,0 +1,65 @@
+name: Build Pinned Base and Wrapper
+
+on:
+  workflow_dispatch:
+
+env:
+  JEG_VERSION: 3.2.3
+
+permissions:
+  contents: write
+
+jobs:
+  build-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Wrapper Repository
+        uses: actions/checkout@v4
+        with:
+          path: wrapper-repo
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Fetch Upstream Enterprise Gateway
+        run: |
+          mkdir upstream
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/jupyter-server/enterprise_gateway.git upstream/jeg-source
+          cd upstream/jeg-source
+          git sparse-checkout set etc/kubernetes/helm/enterprise-gateway
+          
+          mv etc/kubernetes/helm/enterprise-gateway ../chart
+          cd ../..
+          rm -rf upstream/jeg-source
+
+      - name: Pin Base Chart Version
+        run: |
+          sed -i 's/^version: .*/version: ${{ env.JEG_VERSION }}/' ./upstream/chart/Chart.yaml
+          sed -i 's/^appVersion: .*/appVersion: ${{ env.JEG_VERSION }}/' ./upstream/chart/Chart.yaml
+          echo "Pinned upstream chart to version ${{ env.JEG_VERSION }}"
+
+      - name: Package Base Chart
+        run: |
+          helm package ./upstream/chart --destination ./packaged-artifacts
+          
+          echo "Base chart packaged:"
+          ls ./packaged-artifacts
+
+      - name: Configure Wrapper to use Local Base
+        run: |
+          CHART_FILE="./wrapper-repo/my-wrapper-chart/Chart.yaml"
+          sed -i 's/version: ".*"/version: "${{ env.JEG_VERSION }}"/' $CHART_FILE
+          sed -i 's|repository: .*|repository: "file://../../upstream/chart"|' $CHART_FILE
+          cat $CHART_FILE
+
+      - name: Build and Package Wrapper
+        run: |
+          cd ./wrapper-repo/my-wrapper-chart
+          helm dependency build
+          helm package . --destination ../../packaged-artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ env.JEG_VERSION }}
+          files: packaged-artifacts/*.tgz
