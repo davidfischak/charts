@@ -26,14 +26,14 @@ jobs:
           git clone --depth 1 --filter=blob:none --sparse https://github.com/jupyter-server/enterprise_gateway.git temp_upstream
           cd temp_upstream
           git sparse-checkout set etc/kubernetes/helm/enterprise-gateway
-          tar -cf - -C etc/kubernetes/helm/enterprise-gateway . | tar -xf - -C ../${{ env.WRAPPER_CHART_PATH }}/charts/enterprise-gateway
+          tar -cf - -C etc/kubernetes/helm/enterprise-gateway . | tar -xf - -C ../${{ env.WRAPPER_CHART_PATH }}
           cd ..
           rm -rf temp_upstream
 
       - name: Pin Versions (Base & Wrapper)
         run: |
           WRAPPER_CHART="${{ env.WRAPPER_CHART_PATH }}/Chart.yaml"
-          BASE_CHART="${{ env.WRAPPER_CHART_PATH }}/charts/enterprise-gateway/Chart.yaml"
+          BASE_CHART="${{ env.WRAPPER_CHART_PATH }}/Chart.yaml"
           sed -i "s/^version: .*/version: ${{ env.PINNED_VERSION }}/" $BASE_CHART
           sed -i "s/^appVersion: .*/appVersion: ${{ env.PINNED_VERSION }}/" $BASE_CHART
           sed -i "s/^version: .*/version: ${{ env.PINNED_VERSION }}/" $WRAPPER_CHART
