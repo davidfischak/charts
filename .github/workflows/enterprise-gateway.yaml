@@ -1,12 +1,12 @@
 name: Release upstream JEG chart
 
 on:
-  schedule:
-    - cron: "0 8 * * 1"
+  #schedule:
+  #  - cron: "0 8 * * 1"
   workflow_dispatch:
   push:
     branches:
-      - main
+      - jupyter-enterprise-gateway
     tags:
       - "jeg-*"
     paths:
