@@ -5,7 +5,7 @@ on:
 
 env:
   PINNED_VERSION: "3.2.3"
-  WRAPPER_CHART_PATH: "charts/eodc/jupyter-enterprise-gateway" 
+  WRAPPER_CHART_PATH: "jupyter-enterprise-gateway" 
 
 permissions:
   contents: write
@@ -20,40 +20,36 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@v4
 
-      - name: Fetch Upstream Chart
+      - name: Embed Upstream Dependency
         run: |
-          mkdir -p upstream
-          git clone --depth 1 --filter=blob:none --sparse https://github.com/jupyter-server/enterprise_gateway.git upstream-temp
-          cd upstream-temp
+          mkdir -p ${{ env.WRAPPER_CHART_PATH }}/charts/enterprise-gateway
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/jupyter-server/enterprise_gateway.git temp_upstream
+          cd temp_upstream
           git sparse-checkout set etc/kubernetes/helm/enterprise-gateway
-          
-          mv etc/kubernetes/helm/enterprise-gateway ../upstream/chart
+          tar -cf - -C etc/kubernetes/helm/enterprise-gateway . | tar -xf - -C ../${{ env.WRAPPER_CHART_PATH }}/charts/enterprise-gateway
           cd ..
-          rm -rf upstream-temp
+          rm -rf temp_upstream
 
-      - name: Pin Upstream Version
+      - name: Pin Versions (Base & Wrapper)
         run: |
-          sed -i "s/^version: .*/version: ${{ env.PINNED_VERSION }}/" upstream/chart/Chart.yaml
-          sed -i "s/^appVersion: .*/appVersion: ${{ env.PINNED_VERSION }}/" upstream/chart/Chart.yaml
-
-      - name: Configure Wrapper Dependencies
-        run: |
-          CHART_FILE="${{ env.WRAPPER_CHART_PATH }}/Chart.yaml"
-
-          mkdir -p ${{ env.WRAPPER_CHART_PATH }}
-          sed -i 's|repository: oci://.*|repository: "file://../../upstream/chart"|' $CHART_FILE
-          sed -i "s/^version: .*/version: ${{ env.PINNED_VERSION }}/" $CHART_FILE
-          sed -i "s/^appVersion: .*/appVersion: ${{ env.PINNED_VERSION }}/" $CHART_FILE
+          WRAPPER_CHART="${{ env.WRAPPER_CHART_PATH }}/Chart.yaml"
+          BASE_CHART="${{ env.WRAPPER_CHART_PATH }}/charts/enterprise-gateway/Chart.yaml"
+          sed -i "s/^version: .*/version: ${{ env.PINNED_VERSION }}/" $BASE_CHART
+          sed -i "s/^appVersion: .*/appVersion: ${{ env.PINNED_VERSION }}/" $BASE_CHART
+          sed -i "s/^version: .*/version: ${{ env.PINNED_VERSION }}/" $WRAPPER_CHART
+          sed -i "s/^appVersion: .*/appVersion: ${{ env.PINNED_VERSION }}/" $WRAPPER_CHART
+          sed -i 's|repository: oci://.*|repository: "file://./charts/enterprise-gateway"|' $WRAPPER_CHART
 
       - name: Build and Package
         run: |
-          mkdir release-packages
-          helm dependency build ${{ env.WRAPPER_CHART_PATH }}
-          helm package ${{ env.WRAPPER_CHART_PATH }} --destination release-packages
+          helm package ${{ env.WRAPPER_CHART_PATH }} --destination .
+          
+          echo "Package created:"
+          ls *.tgz
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ env.PINNED_VERSION }}
-          files: release-packages/*.tgz
+          files: "*.tgz"
           generate_release_notes: true
