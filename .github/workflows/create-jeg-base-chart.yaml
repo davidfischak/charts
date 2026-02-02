@@ -47,17 +47,17 @@ jobs:
           sed -i 's/^appVersion: .*/appVersion: ${{ env.JEG_VERSION }}/' $CHART_PATH
           echo "Pinned upstream chart to version ${{ env.JEG_VERSION }}"
 
-      - name: Move Wrapper Chart
-        run: |
-          cp --recursive wrapper-repo/my-wrapper-chart ./charts/my-wrapper-chart
+      #- name: Move Wrapper Chart
+      #  run: |
+      #    cp --recursive wrapper-repo/my-wrapper-chart ./charts/my-wrapper-chart
 
       - name: Configure Wrapper Dependency
         run: |
-          CHART_FILE="./charts/my-wrapper-chart/Chart.yaml"
+          CHART_PATH="./charts/enterprise-gateway/Chart.yaml"
           
-          sed -i 's/version: ".*"/version: "${{ env.JEG_VERSION }}"/' $CHART_FILE
-          sed -i 's|repository: .*|repository: "file://../enterprise-gateway"|' $CHART_FILE
-          cat $CHART_FILE
+          sed -i 's/version: ".*"/version: "${{ env.JEG_VERSION }}"/' $CHART_PATH
+          sed -i 's|repository: .*|repository: "file://../enterprise-gateway"|' $CHART_PATH
+          cat $CHART_PATH
 
       - name: Run Chart Releaser
         uses: helm/chart-releaser-action@v1.6.0
