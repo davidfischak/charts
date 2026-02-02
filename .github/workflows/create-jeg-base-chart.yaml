@@ -37,7 +37,7 @@ jobs:
           git sparse-checkout set etc/kubernetes/helm/enterprise-gateway
           cd ..
           
-          mv etc/kubernetes/helm/enterprise-gateway /charts
+          mv jeg-upstream/etc/kubernetes/helm/enterprise-gateway charts
           rm --force --recursive jeg-upstream
 
       - name: Pin Base Chart Version
