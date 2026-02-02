@@ -32,7 +32,7 @@ jobs:
 
       - name: Fetch Upstream Enterprise Gateway
         run: |
-          git clone --depth 1 --filter=blob:none --sparse https://github.com/jupyter-server/enterprise_gateway.git jeg-upstream
+          git clone --depth 1 --filter=blob:none https://github.com/jupyter-server/enterprise_gateway.git jeg-upstream
           cd jeg-upstream
           git sparse-checkout set etc/kubernetes/helm/enterprise-gateway
           cd ..
