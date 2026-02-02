@@ -28,16 +28,16 @@ jobs:
         uses: azure/setup-helm@v4
 
       - name: Prepare Charts Directory
-        run: mkdir --parents charts
+        run: mkdir --parents charts/enterprise-gateway
 
       - name: Fetch Upstream Enterprise Gateway
         run: |
           git clone --depth 1 --filter=blob:none --sparse https://github.com/jupyter-server/enterprise_gateway.git jeg-upstream
           cd jeg-upstream
           git sparse-checkout set etc/kubernetes/helm/enterprise-gateway
-          
-          mv etc/kubernetes/helm/enterprise-gateway ../charts/enterprise-gateway
           cd ..
+          
+          mv etc/kubernetes/helm/enterprise-gateway /charts
           rm --force --recursive jeg-upstream
 
       - name: Pin Base Chart Version
