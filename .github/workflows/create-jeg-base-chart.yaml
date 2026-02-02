@@ -55,8 +55,8 @@ jobs:
         run: |
           CHART_FILE="./charts/my-wrapper-chart/Chart.yaml"
           
-          sed --in-place 's/version: ".*"/version: "${{ env.JEG_VERSION }}"/' $CHART_FILE
-          sed --in-place 's|repository: .*|repository: "file://../enterprise-gateway"|' $CHART_FILE
+          sed -i 's/version: ".*"/version: "${{ env.JEG_VERSION }}"/' $CHART_FILE
+          sed -i 's|repository: .*|repository: "file://../enterprise-gateway"|' $CHART_FILE
           cat $CHART_FILE
 
       - name: Run Chart Releaser
