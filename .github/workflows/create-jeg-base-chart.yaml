@@ -38,6 +38,7 @@ jobs:
           cd ..
           
           mv jeg-upstream/etc/kubernetes/helm/enterprise-gateway charts
+          mv jeg-upstream/.git charts
           rm --force --recursive jeg-upstream
 
       - name: Pin Base Chart Version
