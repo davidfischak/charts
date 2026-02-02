@@ -43,8 +43,8 @@ jobs:
       - name: Pin Base Chart Version
         run: |
           CHART_PATH="./charts/enterprise-gateway/Chart.yaml"
-          sed --in-place 's/^version: .*/version: ${{ env.JEG_VERSION }}/' $CHART_PATH
-          sed --in-place 's/^appVersion: .*/appVersion: ${{ env.JEG_VERSION }}/' $CHART_PATH
+          sed -i 's/^version: .*/version: ${{ env.JEG_VERSION }}/' $CHART_PATH
+          sed -i 's/^appVersion: .*/appVersion: ${{ env.JEG_VERSION }}/' $CHART_PATH
           echo "Pinned upstream chart to version ${{ env.JEG_VERSION }}"
 
       - name: Move Wrapper Chart
