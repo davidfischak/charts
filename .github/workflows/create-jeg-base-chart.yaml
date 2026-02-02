@@ -33,7 +33,7 @@ jobs:
         run: |
           WRAPPER_CHART="${{ env.WRAPPER_CHART_PATH }}/Chart.yaml"
           BASE_CHART="${{ env.WRAPPER_CHART_PATH }}/Chart.yaml"
-          sed -i "s/^version: .*/version: ${{ env.PINNED_VERSION }}/" $BASE_CHART
+          sed --in-place "s/^version: .*/version: ${{ env.PINNED_VERSION }}/" $BASE_CHART
           sed -i "s/^appVersion: .*/appVersion: ${{ env.PINNED_VERSION }}/" $BASE_CHART
           sed -i "s/^version: .*/version: ${{ env.PINNED_VERSION }}/" $WRAPPER_CHART
           sed -i "s/^appVersion: .*/appVersion: ${{ env.PINNED_VERSION }}/" $WRAPPER_CHART
