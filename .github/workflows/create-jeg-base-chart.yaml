@@ -1,54 +1,67 @@
-name: Build and Release Wrapper Chart
+name: Build Pinned Base and Wrapper
 
 on:
   workflow_dispatch:
 
 env:
-  PINNED_VERSION: "3.2.3"
-  WRAPPER_CHART_PATH: "eodc/jupyter-enterprise-gateway" 
+  JEG_VERSION: 3.2.3
 
 permissions:
   contents: write
 
 jobs:
-  build-and-release:
+  build-and-publish:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
+      - name: Checkout Wrapper Repository
         uses: actions/checkout@v4
+        with:
+          path: wrapper-repo
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "$GITHUB_ACTOR"
+          git config --global user.email "$GITHUB_ACTOR@users.noreply.github.com"
 
       - name: Install Helm
         uses: azure/setup-helm@v4
 
-      - name: Embed Upstream Dependency
+      - name: Prepare Charts Directory
+        run: mkdir --parents charts
+
+      - name: Fetch Upstream Enterprise Gateway
         run: |
-          git clone --depth 1 --filter=blob:none --sparse https://github.com/jupyter-server/enterprise_gateway.git temp_upstream
-          cd temp_upstream
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/jupyter-server/enterprise_gateway.git jeg-upstream
+          cd jeg-upstream
           git sparse-checkout set etc/kubernetes/helm/enterprise-gateway
-          tar -cf - -C etc/kubernetes/helm/enterprise-gateway . | tar -xf - -C ../${{ env.WRAPPER_CHART_PATH }}
-          cd ..
-          rm -rf temp_upstream
-
-      - name: Pin Versions (Base & Wrapper)
-        run: |
-          WRAPPER_CHART="${{ env.WRAPPER_CHART_PATH }}/Chart.yaml"
-          BASE_CHART="${{ env.WRAPPER_CHART_PATH }}/Chart.yaml"
-          sed -i "s/^version: .*/version: ${{ env.PINNED_VERSION }}/" $BASE_CHART
-          sed -i "s/^appVersion: .*/appVersion: ${{ env.PINNED_VERSION }}/" $BASE_CHART
-          sed -i "s/^version: .*/version: ${{ env.PINNED_VERSION }}/" $WRAPPER_CHART
-          sed -i "s/^appVersion: .*/appVersion: ${{ env.PINNED_VERSION }}/" $WRAPPER_CHART
-          sed -i 's|repository: oci://.*|repository: "file://./charts/enterprise-gateway"|' $WRAPPER_CHART
-
-      - name: Build and Package
-        run: |
-          helm package ${{ env.WRAPPER_CHART_PATH }} --destination .
           
-          echo "Package created:"
-          ls *.tgz
+          mv etc/kubernetes/helm/enterprise-gateway ../charts/enterprise-gateway
+          cd ..
+          rm --force --recursive jeg-upstream
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
+      - name: Pin Base Chart Version
+        run: |
+          CHART_PATH="./charts/enterprise-gateway/Chart.yaml"
+          sed --in-place='s/^version: .*/version: ${{ env.JEG_VERSION }}/' $CHART_PATH
+          sed --in-place='s/^appVersion: .*/appVersion: ${{ env.JEG_VERSION }}/' $CHART_PATH
+          echo "Pinned upstream chart to version ${{ env.JEG_VERSION }}"
+
+      - name: Move Wrapper Chart
+        run: |
+          cp --recursive wrapper-repo/my-wrapper-chart ./charts/my-wrapper-chart
+
+      - name: Configure Wrapper Dependency
+        run: |
+          CHART_FILE="./charts/my-wrapper-chart/Chart.yaml"
+          
+          sed --in-place='s/version: ".*"/version: "${{ env.JEG_VERSION }}"/' $CHART_FILE
+          sed --in-place='s|repository: .*|repository: "file://../enterprise-gateway"|' $CHART_FILE
+          cat $CHART_FILE
+
+      - name: Run Chart Releaser
+        uses: helm/chart-releaser-action@v1.6.0
+        env:
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         with:
-          tag_name: v${{ env.PINNED_VERSION }}
-          files: "*.tgz"
-          generate_release_notes: true
+          charts_dir: charts
